@@ -4,9 +4,11 @@ import com.rathete.employeeapi.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -43,11 +45,28 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation Failed", "Validation failed", request, validationErrors);
     }
 
+    // Handle malformed or unreadable JSON request bodies
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Request body is missing or not valid JSON", request, null);
+    }
+
+    // Handle path/query parameters of the wrong type, e.g. a non-numeric id
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        String message = "Invalid value '" + ex.getValue() + "' for parameter '" + ex.getName() + "'";
+        return build(HttpStatus.BAD_REQUEST, "Bad Request", message, request, null);
+    }
+
     // Handle unexpected errors
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(
             Exception ex, HttpServletRequest request) {
-        return build(HttpStatus.INTERNAL_SERVER_ERROR,"An unexpected error occurred", ex.getMessage(), request, null);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
+                "An unexpected error occurred", request, null);
     }
 
     // Helper method to build the error response
